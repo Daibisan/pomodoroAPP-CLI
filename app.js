@@ -9,8 +9,8 @@ const player = require("play-sound")({
 // ==========================================
 // CONFIGURATION
 // ==========================================
-const FOCUS_TIME = 1; // 1 Menit
-const REST_TIME = 5;     // 15 Detik
+const FOCUS_TIME = 25 * 60; // 1 Menit
+const REST_TIME = 5 * 60;     // 15 Detik
 // ==========================================
 
 const soundFokus = path.join(__dirname, "sound", "hey.mp3");
@@ -49,7 +49,6 @@ function bersihkanMPV() {
 }
 
 process.on('SIGINT', () => {
-    console.log("\n[Clean Up] Mematikan semua sesi MPV...");
     bersihkanMPV();
 });
 
