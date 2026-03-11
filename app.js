@@ -10,7 +10,7 @@ const player = require("play-sound")({
 // CONFIGURATION
 // ==========================================
 const FOCUS_TIME = 1; // 1 Menit
-const REST_TIME = 5;      // 15 Detik
+const REST_TIME = 5;     // 15 Detik
 // ==========================================
 
 const soundFokus = path.join(__dirname, "sound", "hey.mp3");
@@ -25,40 +25,36 @@ let timerHandle = null;
 
 function mulaiSesiIstirahat() {
     if (!sedangFokus) {
+        // Gunakan path dengan format yang dimengerti CMD
         const mpv = `"C:\\Program Files\\MPV Player\\mpv.com"`;
         const gif = `"${gifIstirahat}"`;
 
-        // Kita pakai argumen -w 0 (jendela saat ini) 
-        // Dan split-pane -V (Vertical)
-        // Kita juga tambahkan --size 0.5 sesuai request kamu
-        const perintahWt = `wt -w 0 split-pane -V --size 0.5 --title "BREAK_GIF" ${mpv} --vo=tct --loop=inf --no-audio --really-quiet ${gif}`;
+        // Trik Windows: start "" "Path Dengan Spasi"
+        // /C bakal langsung nutup terminal kalau MPV beres, tapi tetep nunggu MPV selesai
+        const perintah = `start "" ${mpv} --vo=tct --loop=inf --no-audio --really-quiet --terminal=yes ${gif}`;
 
-        exec(perintahWt, (err) => {
-            if (err) {
-                // Fallback kalau gagal
-                const fallback = `start "" ${mpv} --vo=tct --loop=inf --no-audio --really-quiet --terminal=yes ${gif}`;
-                exec(fallback);
-            }
+        exec(perintah, (err) => {
+            if (err) console.error("Gagal buka jendela GIF:", err);
         });
 
         putarLaguLoop();
     }
 }
 
-function bersihkanMPV(callback) {
-    // Matikan MPV (.exe & .com) biar sesi istirahat berhenti
-    exec("taskkill /F /IM mpv.exe /T & taskkill /F /IM mpv.com /T", () => {
-        if (callback) callback();
+// Tukang bersih-bersih saat aplikasi ditutup (Ctrl+C) atau selesai
+function bersihkanMPV() {
+    exec("taskkill /F /IM mpv.com /T", () => {
+        process.exit();
     });
 }
 
-process.on("SIGINT", () => {
+process.on('SIGINT', () => {
     console.log("\n[Clean Up] Mematikan semua sesi MPV...");
-    bersihkanMPV(() => process.exit());
+    bersihkanMPV();
 });
 
-process.on("exit", () => {
-    exec("taskkill /F /IM mpv.exe /T & taskkill /F /IM mpv.com /T");
+process.on('exit', () => {
+    exec("taskkill /F /IM mpv.com /T");
 });
 
 function putarLaguLoop() {
@@ -83,10 +79,8 @@ function jalankanTimer() {
             console.log(` SISA WAKTU: ${displayWaktu}`);
             console.log(`===================================`);
         } else {
-            // ANSI escape untuk update timer tanpa flicker
-            process.stdout.write(
-                `\x1b[H\x1b[K\x1b[32m 🟢 ISTIRAHAT | Sisa Waktu: ${displayWaktu} \x1b[0m\n`,
-            );
+            // Gunakan ANSI escape untuk update timer tanpa flicker di terminal utama
+            process.stdout.write(`\x1b[H\x1b[K\x1b[32m 🟢 ISTIRAHAT | Sisa Waktu: ${displayWaktu} \x1b[0m\n`);
         }
 
         if (sisaWaktu <= 0) {
@@ -105,6 +99,7 @@ function pindahState() {
         player.play(soundFokus, (err) => {
             sedangFokus = false;
             sisaWaktu = REST_TIME;
+
             console.clear(); 
             mulaiSesiIstirahat();
             jalankanTimer();
@@ -112,21 +107,20 @@ function pindahState() {
     } else {
         sedangFokus = true;
 
-        bersihkanMPV(() => {
-            setTimeout(() => {
-                if (setSekarang < totalSet) {
-                    setSekarang++;
-                    sisaWaktu = FOCUS_TIME;
-                    console.clear(); 
-                    jalankanTimer();
-                } else {
-                    console.clear();
-                    console.log("\n🔥 SEMUA SET SELESAI! MANTAP BRO! 🔥");
-                    process.exit();
-                }
-            }, 500);
+        // Taskkill otomatis menutup jendela terminal GIF yang tadi dibuka
+        exec("taskkill /F /IM mpv.com /T", (err) => {
+            if (setSekarang < totalSet) {
+                setSekarang++;
+                sisaWaktu = FOCUS_TIME;
+                jalankanTimer();
+            } else {
+                console.clear();
+                console.log("\nSEMUA SET SELESAI!");
+                process.exit();
+            }
         });
     }
 }
 
+// Jalankan aplikasi
 jalankanTimer();
