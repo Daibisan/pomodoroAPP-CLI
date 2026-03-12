@@ -9,11 +9,12 @@ const player = require("play-sound")({
 // ==========================================
 // CONFIGURATION
 // ==========================================
-const FOCUS_TIME = 25 * 60; // 1 Menit
-const REST_TIME = 5 * 60;     // 15 Detik
+const FOCUS_TIME = 2; // 1 Menit
+const REST_TIME = 3; // 15 Detik
 // ==========================================
 
-const soundFokus = path.join(__dirname, "sound", "hey.mp3");
+const soundSelesaiFokus = path.join(__dirname, "sound", "focus_end.mp3");
+const soundMulaiFokus = path.join(__dirname, "sound", "focus_start.mp3");
 const soundIstirahat = path.join(__dirname, "sound", "break.mp3");
 const gifIstirahat = path.join(__dirname, "gif", "break.gif");
 
@@ -48,11 +49,11 @@ function bersihkanMPV() {
     });
 }
 
-process.on('SIGINT', () => {
+process.on("SIGINT", () => {
     bersihkanMPV();
 });
 
-process.on('exit', () => {
+process.on("exit", () => {
     exec("taskkill /F /IM mpv.com /T");
 });
 
@@ -79,7 +80,9 @@ function jalankanTimer() {
             console.log(`===================================`);
         } else {
             // Gunakan ANSI escape untuk update timer tanpa flicker di terminal utama
-            process.stdout.write(`\x1b[H\x1b[K\x1b[32m 🟢 ISTIRAHAT | Sisa Waktu: ${displayWaktu} \x1b[0m\n`);
+            process.stdout.write(
+                `\x1b[H\x1b[K\x1b[32m 🟢 ISTIRAHAT | Sisa Waktu: ${displayWaktu} \x1b[0m\n`,
+            );
         }
 
         if (sisaWaktu <= 0) {
@@ -94,14 +97,16 @@ function pindahState() {
     clearInterval(timerHandle);
 
     if (sedangFokus) {
-        console.log("\nSesi fokus beres! Memutar notifikasi...");
-        player.play(soundFokus, (err) => {
-            sedangFokus = false;
-            sisaWaktu = REST_TIME;
+        exec("taskkill /F /IM mpv.com /T", (err) => {
+            console.log("\nSesi fokus beres! Memutar notifikasi...");
+            player.play(soundSelesaiFokus, (err) => {
+                sedangFokus = false;
+                sisaWaktu = REST_TIME;
 
-            console.clear(); 
-            mulaiSesiIstirahat();
-            jalankanTimer();
+                console.clear();
+                mulaiSesiIstirahat();
+                jalankanTimer();
+            });
         });
     } else {
         sedangFokus = true;
@@ -109,6 +114,7 @@ function pindahState() {
         // Taskkill otomatis menutup jendela terminal GIF yang tadi dibuka
         exec("taskkill /F /IM mpv.com /T", (err) => {
             if (setSekarang < totalSet) {
+                player.play(soundMulaiFokus);
                 setSekarang++;
                 sisaWaktu = FOCUS_TIME;
                 jalankanTimer();
