@@ -9,8 +9,8 @@ const player = require("play-sound")({
 // ==========================================
 // CONFIGURATION
 // ==========================================
-const FOCUS_TIME = 2; // 1 Menit
-const REST_TIME = 3; // 15 Detik
+const FOCUS_TIME = 25 * 60; // 1 Menit
+const REST_TIME = 5 * 60; // 15 Detik
 // ==========================================
 
 const soundSelesaiFokus = path.join(__dirname, "sound", "focus_end.mp3");
