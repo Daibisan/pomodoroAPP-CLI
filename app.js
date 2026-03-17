@@ -1,8 +1,10 @@
+const mpvPath = "C:\\Program Files\\MPV Player\\mpv.com";
+
 const { exec } = require("child_process");
 const path = require("path");
 
 const player = require("play-sound")({
-    player: "C:\\Program Files\\MPV Player\\mpv.com",
+    player: mpvPath,
     args: ["--really-quiet"],
 });
 
@@ -26,13 +28,10 @@ let timerHandle = null;
 
 function mulaiSesiIstirahat() {
     if (!sedangFokus) {
-        // Gunakan path dengan format yang dimengerti CMD
-        const mpv = `"C:\\Program Files\\MPV Player\\mpv.com"`;
+
         const gif = `"${gifIstirahat}"`;
 
-        // Trik Windows: start "" "Path Dengan Spasi"
-        // /C bakal langsung nutup terminal kalau MPV beres, tapi tetep nunggu MPV selesai
-        const perintah = `start "" ${mpv} --vo=tct --loop=inf --no-audio --really-quiet --terminal=yes ${gif}`;
+        const perintah = `start "" "${mpvPath}" --vo=tct --loop=inf --no-audio --really-quiet --terminal=yes ${gif}`;
 
         exec(perintah, (err) => {
             if (err) console.error("Gagal buka jendela GIF:", err);
@@ -120,8 +119,24 @@ function pindahState() {
                 jalankanTimer();
             } else {
                 console.clear();
-                console.log("\nSEMUA SET SELESAI!");
-                process.exit();
+                // Hitung total menit fokus (Total Set * Menit per Set)
+                const totalMenit = (totalSet * FOCUS_TIME) / 60;
+
+                console.log(`\n===================================`);
+                console.log(`🔥 SEMUA SET SELESAI! 🔥`);
+                console.log(
+                    `Kamu sudah fokus selama ${totalMenit.toFixed(1)} menit hari ini.`,
+                );
+                console.log(`===================================`);
+
+                // Pastikan pembersihan pakai variabel yang bener
+                // Kita bungkus variabel mpvPath dengan tanda kutip di dalam string perintah
+                exec(
+                    `taskkill /F /IM mpv.exe /T & taskkill /F /IM mpv.com /T`,
+                    () => {
+                        process.exit();
+                    },
+                );
             }
         });
     }
