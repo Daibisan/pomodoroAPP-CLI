@@ -11,7 +11,6 @@
   "license": "ISC",
   "type": "commonjs",
   "dependencies": {
-    "play-sound": "^1.1.6",
-    "terminal-kit": "^3.1.2"
+    "play-sound": "^1.1.6"
   }
 }
