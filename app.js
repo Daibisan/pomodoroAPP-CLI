@@ -7,9 +7,9 @@ const mpvPath = "C:\\Program Files\\MPV Player\\mpv.com";
 // CONFIGURATION
 // ==========================================
 const FOCUS_TIME = 25 * 60; // 25 Menit (dalam detik)
-const REST_TIME = 5 * 60;   // 5 Menit (dalam detik)
-const VOL_NOTIF = 40;       // Volume kencang buat pengingat
-const VOL_MUSIK = 60;       // Volume pelan buat musik latar
+const REST_TIME = 5 * 60; // 5 Menit (dalam detik)
+const VOL_NOTIF = 40; // Volume kencang buat pengingat
+const VOL_MUSIK = 60; // Volume pelan buat musik latar
 // ==========================================
 
 const soundSelesaiFokus = path.join(__dirname, "sound", "focus_end.mp3");
@@ -30,9 +30,17 @@ function putarAudio(filePath, volume, callback = () => {}) {
 
 function mulaiSesiIstirahat() {
     if (!sedangFokus) {
-        const gif = `"${gifIstirahat}"`;
-        const perintah = `start "" "${mpvPath}" --vo=tct --loop=inf --no-audio --really-quiet --terminal=yes ${gif}`;
-        
+        const mpvGuiPath = mpvPath.replace(".com", ".exe");
+
+        const mpvOptions = {
+            gifSize: "400x400",
+            xPos: "100%",
+            yPos: "0%",
+            blurred: true,
+        };
+
+        const perintah = `"${mpvGuiPath}" ${mpvOptions.blurred ? "--vf=scale=64:64:flags=neighbor --sws-scaler=point" : ""} --scale=nearest --loop=inf --no-audio --really-quiet --autofit=${mpvOptions.gifSize} --geometry=${mpvOptions.xPos}:${mpvOptions.yPos} --ontop --no-border "${gifIstirahat}"`;
+
         exec(perintah);
         putarLaguLoop();
     }
@@ -108,7 +116,9 @@ function pindahState() {
                 console.clear();
                 const totalMenit = (totalSet * FOCUS_TIME) / 60;
                 console.log(`🔥 SEMUA SET SELESAI! 🔥`);
-                console.log(`Kamu sudah fokus selama ${totalMenit.toFixed(1)} menit.`);
+                console.log(
+                    `Kamu sudah fokus selama ${totalMenit.toFixed(1)} menit.`,
+                );
                 bersihkanMPV(() => process.exit());
             }
         });
