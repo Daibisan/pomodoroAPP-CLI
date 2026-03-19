@@ -1,18 +1,15 @@
-const mpvPath = "C:\\Program Files\\MPV Player\\mpv.com";
-
 const { exec } = require("child_process");
 const path = require("path");
 
-const player = require("play-sound")({
-    player: mpvPath,
-    args: ["--really-quiet"],
-});
+const mpvPath = "C:\\Program Files\\MPV Player\\mpv.com";
 
 // ==========================================
 // CONFIGURATION
 // ==========================================
-const FOCUS_TIME = 25 * 60; // 1 Menit
-const REST_TIME = 5 * 60; // 15 Detik
+const FOCUS_TIME = 25 * 60; // 25 Menit (dalam detik)
+const REST_TIME = 5 * 60;   // 5 Menit (dalam detik)
+const VOL_NOTIF = 40;       // Volume kencang buat pengingat
+const VOL_MUSIK = 60;       // Volume pelan buat musik latar
 // ==========================================
 
 const soundSelesaiFokus = path.join(__dirname, "sound", "focus_end.mp3");
@@ -26,62 +23,56 @@ let sedangFokus = true;
 let sisaWaktu = FOCUS_TIME;
 let timerHandle = null;
 
+function putarAudio(filePath, volume, callback = () => {}) {
+    const perintah = `"${mpvPath}" --really-quiet --no-video --volume=${volume} "${filePath}"`;
+    exec(perintah, callback);
+}
+
 function mulaiSesiIstirahat() {
     if (!sedangFokus) {
-
         const gif = `"${gifIstirahat}"`;
-
         const perintah = `start "" "${mpvPath}" --vo=tct --loop=inf --no-audio --really-quiet --terminal=yes ${gif}`;
-
-        exec(perintah, (err) => {
-            if (err) console.error("Gagal buka jendela GIF:", err);
-        });
-
+        
+        exec(perintah);
         putarLaguLoop();
     }
 }
 
-// Tukang bersih-bersih saat aplikasi ditutup (Ctrl+C) atau selesai
-function bersihkanMPV() {
-    exec("taskkill /F /IM mpv.com /T", () => {
-        process.exit();
-    });
-}
-
-process.on("SIGINT", () => {
-    bersihkanMPV();
-});
-
-process.on("exit", () => {
-    exec("taskkill /F /IM mpv.com /T");
-});
-
 function putarLaguLoop() {
     if (!sedangFokus) {
-        player.play(soundIstirahat, { mpv: ["--no-video"] }, (err) => {
-            if (!err && !sedangFokus) putarLaguLoop();
+        // Pakai volume kecil (VOL_MUSIK)
+        putarAudio(soundIstirahat, VOL_MUSIK, (err) => {
+            if (!sedangFokus) putarLaguLoop();
         });
     }
 }
 
+function bersihkanMPV(callback) {
+    exec(`taskkill /F /IM mpv.com /T & taskkill /F /IM mpv.exe /T`, () => {
+        if (callback) callback();
+    });
+}
+
 function jalankanTimer() {
+    if (timerHandle) clearInterval(timerHandle);
+
     timerHandle = setInterval(() => {
         const m = Math.floor(sisaWaktu / 60);
         const s = sisaWaktu % 60;
         const displayWaktu = `${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
 
+        console.clear();
         if (sedangFokus) {
-            console.clear();
             console.log(`===================================`);
             console.log(` SET: ${setSekarang} / ${totalSet}`);
             console.log(` STATUS: 🔴 FOKUS`);
             console.log(` SISA WAKTU: ${displayWaktu}`);
             console.log(`===================================`);
         } else {
-            // Gunakan ANSI escape untuk update timer tanpa flicker di terminal utama
-            process.stdout.write(
-                `\x1b[H\x1b[K\x1b[32m 🟢 ISTIRAHAT | Sisa Waktu: ${displayWaktu} \x1b[0m\n`,
-            );
+            console.log(`===================================`);
+            console.log(` STATUS: 🟢 ISTIRAHAT`);
+            console.log(` SISA WAKTU: ${displayWaktu}`);
+            console.log(`===================================`);
         }
 
         if (sisaWaktu <= 0) {
@@ -96,51 +87,39 @@ function pindahState() {
     clearInterval(timerHandle);
 
     if (sedangFokus) {
-        exec("taskkill /F /IM mpv.com /T", (err) => {
+        bersihkanMPV(() => {
             console.log("\nSesi fokus beres! Memutar notifikasi...");
-            player.play(soundSelesaiFokus, (err) => {
+            putarAudio(soundSelesaiFokus, VOL_NOTIF, () => {
                 sedangFokus = false;
                 sisaWaktu = REST_TIME;
-
-                console.clear();
                 mulaiSesiIstirahat();
                 jalankanTimer();
             });
         });
     } else {
-        sedangFokus = true;
-
-        // Taskkill otomatis menutup jendela terminal GIF yang tadi dibuka
-        exec("taskkill /F /IM mpv.com /T", (err) => {
+        bersihkanMPV(() => {
+            sedangFokus = true;
             if (setSekarang < totalSet) {
-                player.play(soundMulaiFokus);
+                putarAudio(soundMulaiFokus, VOL_NOTIF);
                 setSekarang++;
                 sisaWaktu = FOCUS_TIME;
                 jalankanTimer();
             } else {
                 console.clear();
-                // Hitung total menit fokus (Total Set * Menit per Set)
                 const totalMenit = (totalSet * FOCUS_TIME) / 60;
-
-                console.log(`\n===================================`);
                 console.log(`🔥 SEMUA SET SELESAI! 🔥`);
-                console.log(
-                    `Kamu sudah fokus selama ${totalMenit.toFixed(1)} menit hari ini.`,
-                );
-                console.log(`===================================`);
-
-                // Pastikan pembersihan pakai variabel yang bener
-                // Kita bungkus variabel mpvPath dengan tanda kutip di dalam string perintah
-                exec(
-                    `taskkill /F /IM mpv.exe /T & taskkill /F /IM mpv.com /T`,
-                    () => {
-                        process.exit();
-                    },
-                );
+                console.log(`Kamu sudah fokus selama ${totalMenit.toFixed(1)} menit.`);
+                bersihkanMPV(() => process.exit());
             }
         });
     }
 }
 
-// Jalankan aplikasi
-jalankanTimer();
+process.on("SIGINT", () => {
+    bersihkanMPV(() => process.exit());
+});
+
+// Start program
+bersihkanMPV(() => {
+    jalankanTimer();
+});
