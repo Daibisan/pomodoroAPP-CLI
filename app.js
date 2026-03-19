@@ -6,10 +6,10 @@ const mpvPath = "C:\\Program Files\\MPV Player\\mpv.com";
 // ==========================================
 // CONFIGURATION
 // ==========================================
-const FOCUS_TIME = 25 * 60; // 25 Menit (dalam detik)
-const REST_TIME = 5 * 60; // 5 Menit (dalam detik)
-const VOL_NOTIF = 40; // Volume kencang buat pengingat
-const VOL_MUSIK = 60; // Volume pelan buat musik latar
+const FOCUS_TIME = 1; // 25 Menit (dalam detik)
+const REST_TIME = 5; // 5 Menit (dalam detik)
+const VOL_NOTIF = 65; // Volume kencang buat pengingat
+const VOL_MUSIK = 80; // Volume pelan buat musik latar
 // ==========================================
 
 const soundSelesaiFokus = path.join(__dirname, "sound", "focus_end.mp3");
