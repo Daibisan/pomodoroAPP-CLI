@@ -8,22 +8,35 @@ const mpvPath = "C:\\Program Files\\MPV Player\\mpv.com";
 // ==========================================
 // CONFIGURATION
 // ==========================================
-const FOCUS_TIME = 25 * 60;
-const REST_TIME = 5 * 60;
+let focus_time = 25 * 60;
+let rest_time = 5 * 60;
 const VOL_NOTIF = 55;
 const VOL_MUSIK = 70;
+
+const mpvGuiPath = mpvPath.replace(".com", ".exe");
+
+const isTesting = process.argv[2] === "test";
+if (isTesting) {
+    focus_time = 2;
+    rest_time = 5;
+}
 // ==========================================
 
 let daftarTujuan = [];
 const soundSelesaiFokus = path.join(__dirname, "sound", "focus_end.mp3");
 const soundMulaiFokus = path.join(__dirname, "sound", "focus_start.mp3");
 const soundIstirahat = path.join(__dirname, "sound", "break.mp3");
+
 const gifIstirahat = path.join(__dirname, "gif", "break.gif");
+const gifSelesaiFokus = path.join(__dirname, "gif", "focus_end.gif");
+const gifMulaiFokus = path.join(__dirname, "gif", "focus_start.gif");
 
 let totalSet = parseInt(process.argv[2]) || 1;
+if (isTesting) totalSet = 2;
+
 let setSekarang = 1;
 let sedangFokus = true;
-let sisaWaktu = FOCUS_TIME;
+let sisaWaktu = focus_time;
 let timerHandle = null;
 
 function putarAudio(filePath, volume, callback = () => {}) {
@@ -31,21 +44,23 @@ function putarAudio(filePath, volume, callback = () => {}) {
     exec(perintah, callback);
 }
 
+function playGif(gifPath, options) {
+    // Konfigurasi MPV
+    const mpvOptions = {
+        gifSize: "400x400",
+        xPos: "100%",
+        yPos: "0%",
+        blurred: options ? options.blurred : false,
+    };
+
+    const perintah = `"${mpvGuiPath}" ${mpvOptions.blurred ? "--vf=scale=64:64:flags=neighbor --sws-scaler=point" : ""} --scale=nearest --loop=inf --no-audio --really-quiet --autofit=${mpvOptions.gifSize} --geometry=${mpvOptions.xPos}:${mpvOptions.yPos} --ontop --no-border "${gifPath}"`;
+
+    exec(perintah);
+}
+
 function mulaiSesiIstirahat() {
     if (!sedangFokus) {
-        const mpvGuiPath = mpvPath.replace(".com", ".exe");
-
-        // Konfigurasi MPV kamu tetap di sini
-        const mpvOptions = {
-            gifSize: "400x400",
-            xPos: "100%",
-            yPos: "0%",
-            blurred: true,
-        };
-
-        const perintah = `"${mpvGuiPath}" ${mpvOptions.blurred ? "--vf=scale=64:64:flags=neighbor --sws-scaler=point" : ""} --scale=nearest --loop=inf --no-audio --really-quiet --autofit=${mpvOptions.gifSize} --geometry=${mpvOptions.xPos}:${mpvOptions.yPos} --ontop --no-border "${gifIstirahat}"`;
-
-        exec(perintah);
+        playGif(gifIstirahat, { blurred: true });
         putarLaguLoop();
     }
 }
@@ -107,7 +122,12 @@ function jalankanTimer() {
         console.log(`===================================`);
         console.log(` SET: ${setSekarang} / ${totalSet}`);
         console.log(` STATUS: ${sedangFokus ? "🔴 FOKUS" : "🟢 ISTIRAHAT"}`);
-        console.log(` TUJUAN: ${daftarTujuan[setSekarang - 1]?.teks}`);
+
+        const tujuan = isTesting
+            ? "Testing"
+            : daftarTujuan[setSekarang - 1]?.teks;
+        console.log(` TUJUAN: ${tujuan}`);
+
         console.log(` SISA WAKTU: ${displayWaktu}`);
         console.log(`===================================`);
 
@@ -121,27 +141,38 @@ function jalankanTimer() {
 
 function pindahState() {
     clearInterval(timerHandle);
+
+    // focus -> break
     if (sedangFokus) {
         bersihkanMPV(() => {
+            playGif(gifSelesaiFokus);
+
+            // Play focus_end sound
             putarAudio(soundSelesaiFokus, VOL_NOTIF, () => {
-                sedangFokus = false;
-                sisaWaktu = REST_TIME;
-                mulaiSesiIstirahat();
-                jalankanTimer();
+                bersihkanMPV(() => {
+                    sedangFokus = false;
+                    sisaWaktu = rest_time;
+                    mulaiSesiIstirahat();
+                    jalankanTimer();
+                });
             });
         });
     } else {
+        // break -> focus
         bersihkanMPV(() => {
             sedangFokus = true;
             if (setSekarang < totalSet) {
                 setSekarang++;
+                playGif(gifMulaiFokus);
                 putarAudio(soundMulaiFokus, VOL_NOTIF);
-                mintaTujuan();
-                sisaWaktu = FOCUS_TIME;
+
+                if (!isTesting) mintaTujuan();
+
+                sisaWaktu = focus_time;
                 jalankanTimer();
             } else {
                 console.clear();
-                simpanLaporan();
+                if (!isTesting) simpanLaporan();
                 process.exit();
             }
         });
@@ -152,6 +183,6 @@ process.on("SIGINT", () => bersihkanMPV(() => process.exit()));
 
 // Start program
 bersihkanMPV(() => {
-    mintaTujuan();
+    if (!isTesting) mintaTujuan();
     jalankanTimer();
 });
